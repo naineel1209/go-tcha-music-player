@@ -1,4 +1,4 @@
-module github.com/naineel1209/golang-music-player
+module github.com/naineel1209/go-tcha-music-player
 
 go 1.21.6
 

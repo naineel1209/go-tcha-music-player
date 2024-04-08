@@ -5,9 +5,9 @@ import (
 
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/speaker"
-	"github.com/naineel1209/golang-music-player/design"
-	"github.com/naineel1209/golang-music-player/player"
-	types "github.com/naineel1209/golang-music-player/type-defs"
+	"github.com/naineel1209/go-tcha-music-player/design"
+	"github.com/naineel1209/go-tcha-music-player/player"
+	types "github.com/naineel1209/go-tcha-music-player/type-defs"
 )
 
 func createQueuePlayer(q *types.Queue) *types.Queue {

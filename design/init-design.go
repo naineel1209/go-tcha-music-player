@@ -15,7 +15,7 @@ import (
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
 	"github.com/gopxl/beep/wav"
-	types "github.com/naineel1209/golang-music-player/type-defs"
+	types "github.com/naineel1209/go-tcha-music-player/type-defs"
 	"github.com/rivo/tview"
 	"github.com/rs/zerolog"
 )
