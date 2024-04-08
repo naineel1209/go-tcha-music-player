@@ -205,7 +205,14 @@ func handleMusicProgress(base *types.BaseStruct, uiStruct *types.UiStruct) {
 	uiStruct.MusicProgress[1].SetText(fmt.Sprintf("[%vm:%vs]", totalTimeMinutes, totalTimeSeconds))
 
 	//handle the progress bar
-	progress := uiStruct.ProgressBar                                                       //set the play button
+	progress := uiStruct.ProgressBar
+
+	if q.GetCurrentCtrl().Paused {
+		progress.PlayPause.SetText(fmt.Sprintf("[%c]", PLAY_BTN))
+	} else {
+		progress.PlayPause.SetText(fmt.Sprintf("[%c]", PAUSE_BTN))
+	}
+
 	progress.MusicName.SetText(fmt.Sprintf("[%s]", currName))                              //set the name of the music playing
 	progress.Progress <- int(math.Floor((currTime.Seconds() / totalTime.Seconds()) * 100)) //send the progress to the progress bar
 }
@@ -352,11 +359,11 @@ func InitDesign(base *types.BaseStruct) {
 			if check { //if the music is paused
 				//play the music
 				currCtrl.Paused = false
-				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PLAY_BTN))
+				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PAUSE_BTN))
 			} else { //if the music is playing
 				//pause the music
 				currCtrl.Paused = true
-				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PAUSE_BTN))
+				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PLAY_BTN))
 			}
 
 			return action, event
