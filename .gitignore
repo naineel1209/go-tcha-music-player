@@ -15,7 +15,8 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
+tmp/
 
 # Go workspace file
 go.work
@@ -149,3 +150,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+tmp/build-errors.log
+tmp/build-errors.log
+tmp/main.exe

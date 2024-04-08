@@ -13,14 +13,25 @@ type BaseStruct struct {
 type UiStruct struct {
 	Queue         *tview.List
 	Playlist      *tview.List
-	MusicProgress []*tview.Primitive
+	MusicProgress []*tview.TextView
+	App           *tview.Application
+	ProgressBar   *ProgressBar
+}
+
+type ProgressBar struct {
+	Name     string
+	Tview    *tview.TextView
+	Full     int
+	Current  int
+	Progress chan int
 }
 
 type CustomStreamer struct {
-	Streamer beep.Streamer
-	Ctrl     *beep.Ctrl
-	Format   beep.Format
-	Name     string
+	Streamer  beep.Streamer
+	Resampled *beep.Resampler
+	Ctrl      *beep.Ctrl
+	Format    beep.Format
+	Name      string
 }
 
 type Queue struct {
@@ -29,10 +40,11 @@ type Queue struct {
 
 func (q *Queue) Add(streamer beep.Streamer, format beep.Format, name string) {
 	q.Streamers = append(q.Streamers, CustomStreamer{
-		Streamer: streamer,
-		Ctrl:     &beep.Ctrl{Streamer: streamer, Paused: false},
-		Format:   format,
-		Name:     name,
+		Streamer:  streamer,
+		Resampled: beep.Resample(4, format.SampleRate, 44100, streamer), //resample the audio data to 44100 Hz (standard sample rate
+		Ctrl:      &beep.Ctrl{Streamer: streamer, Paused: false},
+		Format:    format,
+		Name:      name,
 	})
 }
 
@@ -51,8 +63,8 @@ func (q *Queue) Stream(samples [][2]float64) (n int, ok bool) {
 		}
 
 		//now need to stream the current streamer
-		n, ok := q.Streamers[0].Streamer.Stream(samples[filled:])
-		if !ok { // not ok means the streamer has finished
+		n, ok := q.Streamers[0].Resampled.Stream(samples[filled:]) //stream the samples from the current streamer
+		if !ok {                                                   // not ok means the streamer has finished
 			q.Streamers = q.Streamers[1:]
 		}
 
@@ -60,6 +72,15 @@ func (q *Queue) Stream(samples [][2]float64) (n int, ok bool) {
 	}
 
 	return len(samples), true
+}
+
+func (q *Queue) Next() {
+	if len(q.Streamers) == 0 {
+		return
+	}
+
+	//remove the current streamer but the filled value will be removed in the next iteration
+	q.Streamers = q.Streamers[1:]
 }
 
 func (q *Queue) Err() error {
