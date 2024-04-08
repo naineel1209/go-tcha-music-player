@@ -34,6 +34,7 @@ const (
 )
 
 func init() {
+	//once logger is initialized, it should not be initialized again
 	loggerOnce.Do(func() {
 		file, err := os.OpenFile("logs.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
@@ -318,14 +319,14 @@ func getFilePath(base *types.BaseStruct, index int) (*os.File, string, error) {
 	return fi, ext, nil
 }
 
-func InitDesign(base *types.BaseStruct) *tview.Grid {
+func InitDesign(base *types.BaseStruct) {
 	//new grid
 	app := tview.NewApplication()
 
 	grid := tview.NewGrid()
 
 	//items that can be added to grid
-	musicProgressGrid, musicProgress, progressBar := generateMusicProgress()
+	musicProgressGrid, musicProgress, progressBar := generateMusicProgress() //generate the music progress, current time, total time and progress bar
 	uiStruct := &types.UiStruct{
 		Queue:         generateQueue(),
 		Playlist:      generatePlaylist(base.Paths),
@@ -398,6 +399,4 @@ func InitDesign(base *types.BaseStruct) *tview.Grid {
 	if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
-
-	return grid
 }

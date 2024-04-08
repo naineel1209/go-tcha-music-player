@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gopxl/beep"
@@ -30,7 +29,5 @@ func main() {
 	q := createQueuePlayer(&queue)
 
 	//inited the design - it should return us the grid object of tview lib
-	grid := design.InitDesign(&types.BaseStruct{Paths: musicFiles, Q: q})
-
-	fmt.Printf("the grid object is: %v\n", grid)
+	design.InitDesign(&types.BaseStruct{Paths: musicFiles, Q: q})
 }
