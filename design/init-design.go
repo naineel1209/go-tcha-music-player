@@ -26,6 +26,13 @@ var (
 	loggerOnce   sync.Once
 )
 
+const (
+	PLAY_BTN    = '\u25B6'
+	PAUSE_BTN   = '\u23F8'
+	FULL_BLOCK  = '\u2588'
+	EMPTY_BLOCK = '\u2591'
+)
+
 func init() {
 	loggerOnce.Do(func() {
 		file, err := os.OpenFile("logs.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -88,28 +95,53 @@ func newPrimitive(text string) *tview.TextView {
 
 func generateProgressBar(name string) *types.ProgressBar {
 	progress := types.ProgressBar{
-		Name:     name,
-		Tview:    tview.NewTextView(),
-		Full:     100,
-		Current:  0,
-		Progress: make(chan int), //unbuffered channel so that the progress bar is updated in real time
+		Name:              name,
+		Tgrid:             tview.NewGrid(),
+		PlayPause:         tview.NewTextView(),
+		MusicName:         tview.NewTextView(),
+		ProgressBarVisual: tview.NewTextView(),
+		Full:              100,
+		Current:           0,
+		Progress:          make(chan int), //unbuffered channel so that the progress bar is updated in real time
 	}
 
-	progress.Tview.SetBackgroundColor(tcell.ColorBlack.TrueColor())
-	progress.Tview.SetBorder(true)
-	progress.Tview.SetTitle(name)
-	progress.Tview.SetTitleAlign(tview.AlignLeft)
-	progress.Tview.SetDynamicColors(true)
-	progress.Tview.SetTextColor(tcell.ColorYellow.TrueColor())
-	progress.Tview.SetText(fmt.Sprintf("[%s] ", name))
+	//create the items for the progress bar
+	progress.Tgrid.SetBackgroundColor(tcell.ColorBlack.TrueColor())
+	progress.Tgrid.SetBorder(true)
+
+	progress.PlayPause.SetBackgroundColor(tcell.ColorBlack.TrueColor())
+	progress.PlayPause.SetBorder(true)
+	progress.PlayPause.SetText(fmt.Sprintf("[%c]", PLAY_BTN)) //play symbol - will be replaced by pause symbol when the music is playing
+	progress.PlayPause.SetTextColor(tcell.ColorYellow.TrueColor())
+	progress.PlayPause.SetTextAlign(tview.AlignCenter)
+	progress.PlayPause.SetDynamicColors(true)
+
+	progress.MusicName.SetBackgroundColor(tcell.ColorBlack.TrueColor())
+	progress.MusicName.SetBorder(true)
+	progress.MusicName.SetText(fmt.Sprintf("[%s]", name)) //name of the music playing
+	progress.MusicName.SetTextColor(tcell.ColorYellow.TrueColor())
+	progress.MusicName.SetTextAlign(tview.AlignCenter)
+	progress.MusicName.SetDynamicColors(true)
+
+	progress.ProgressBarVisual.SetBackgroundColor(tcell.ColorBlack.TrueColor())
+	progress.ProgressBarVisual.SetBorder(true)
+	progress.ProgressBarVisual.SetText(fmt.Sprintf("[%s%s]", strings.Repeat(string(FULL_BLOCK), progress.Current), strings.Repeat(string(EMPTY_BLOCK), progress.Full-progress.Current))) //progress bar visual
+
+	progress.Tgrid.AddItem(progress.MusicName, 0, 0, 1, 5, 0, 0, false)
+	progress.Tgrid.AddItem(progress.PlayPause, 0, 5, 1, 2, 0, 0, false)
+	progress.Tgrid.AddItem(progress.ProgressBarVisual, 0, 7, 1, 23, 0, 0, false)
 
 	//channels are used to communicate between goroutines - here we are using a channel to communicate between the main goroutine and the goroutine that updates the progress bar
 	go func() {
 		for val := range progress.Progress {
 			progress.Current = val
 
-			progress.Tview.Clear()
-			progress.Tview.SetText(fmt.Sprintf("[%s] %s%s", progress.Name, strings.Repeat("=", progress.Current), strings.Repeat("·", progress.Full-progress.Current)))
+			//clear the progress bar visual
+			progress.ProgressBarVisual.Clear()
+
+			//progress bar visual - update the progress bar visual
+			progress.ProgressBarVisual.SetText(fmt.Sprintf("[%s%s]", strings.Repeat(string(FULL_BLOCK), progress.Current), strings.Repeat(string(EMPTY_BLOCK), progress.Full-progress.Current)))
+
 		}
 	}()
 
@@ -132,10 +164,10 @@ func generateMusicProgress() (*tview.Grid, []*tview.TextView, *types.ProgressBar
 	// Add the text view to the grid
 	//TODO: add the progress bar
 	musicProgress.AddItem(currTime, 0, 0, 1, 3, 0, 0, false)
-	musicProgress.AddItem(progressBar.Tview, 0, 3, 1, 24, 0, 0, false)
+	musicProgress.AddItem(progressBar.Tgrid, 0, 3, 1, 24, 0, 0, false)
 	musicProgress.AddItem(totalTime, 0, 27, 1, 3, 0, 0, false)
 
-	return musicProgress, []*tview.TextView{currTime, totalTime, progressBar.Tview}, progressBar
+	return musicProgress, []*tview.TextView{currTime, totalTime}, progressBar
 }
 
 func handleMusicProgress(base *types.BaseStruct, uiStruct *types.UiStruct) {
@@ -144,8 +176,6 @@ func handleMusicProgress(base *types.BaseStruct, uiStruct *types.UiStruct) {
 	q := base.Q
 
 	if (q.GetCurrentStreamer()) == nil {
-
-		Logger.Info().Msg("No music is playing") //log the message
 
 		uiStruct.MusicProgress[0].SetText("[-- : --]")
 		uiStruct.MusicProgress[1].SetText("[-- : --]")
@@ -174,8 +204,8 @@ func handleMusicProgress(base *types.BaseStruct, uiStruct *types.UiStruct) {
 	uiStruct.MusicProgress[1].SetText(fmt.Sprintf("[%vm:%vs]", totalTimeMinutes, totalTimeSeconds))
 
 	//handle the progress bar
-	progress := uiStruct.ProgressBar
-	progress.Name = currName
+	progress := uiStruct.ProgressBar                                                       //set the play button
+	progress.MusicName.SetText(fmt.Sprintf("[%s]", currName))                              //set the name of the music playing
 	progress.Progress <- int(math.Floor((currTime.Seconds() / totalTime.Seconds()) * 100)) //send the progress to the progress bar
 }
 
@@ -195,16 +225,6 @@ func generatePlaylist(musicFiles []string) *tview.List {
 	playlist.SetTitle("Playlist")
 	playlist.SetTitleAlign(tview.AlignLeft)
 	playlist.SetBorder(true)
-
-	// playlist.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-	// 	switch event.Key() {
-	// 	case tcell.KeyTAB:
-
-	// 	default: // do nothing
-	// 	}
-
-	// 	return event
-	// })
 
 	return playlist
 }
@@ -313,6 +333,36 @@ func InitDesign(base *types.BaseStruct) *tview.Grid {
 		App:           app,
 		ProgressBar:   progressBar,
 	}
+
+	//register the progressBar.playPause event handler
+	progressBar.PlayPause.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if action == tview.MouseLeftClick {
+			//1. get the current streamer
+			q := base.Q
+
+			if q == nil || len(q.Streamers) == 0 || q.GetCurrentStreamer() == nil || q.GetCurrentCtrl() == nil {
+				return action, event
+			}
+
+			currCtrl := q.GetCurrentCtrl()
+
+			check := currCtrl.Paused
+
+			if check { //if the music is paused
+				//play the music
+				currCtrl.Paused = false
+				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PLAY_BTN))
+			} else { //if the music is playing
+				//pause the music
+				currCtrl.Paused = true
+				progressBar.PlayPause.SetText(fmt.Sprintf("[%c]", PAUSE_BTN))
+			}
+
+			return action, event
+		}
+
+		return action, event
+	})
 
 	//place the items into their place
 	//set the position for the items

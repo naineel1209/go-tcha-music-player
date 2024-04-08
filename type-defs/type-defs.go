@@ -5,6 +5,9 @@ import (
 	"github.com/rivo/tview"
 )
 
+type Queue struct {
+	Streamers []CustomStreamer
+}
 type BaseStruct struct {
 	Paths []string
 	Q     *Queue
@@ -19,11 +22,14 @@ type UiStruct struct {
 }
 
 type ProgressBar struct {
-	Name     string
-	Tview    *tview.TextView
-	Full     int
-	Current  int
-	Progress chan int
+	Name              string
+	Tgrid             *tview.Grid
+	ProgressBarVisual *tview.TextView
+	MusicName         *tview.TextView
+	PlayPause         *tview.TextView
+	Full              int
+	Current           int
+	Progress          chan int
 }
 
 type CustomStreamer struct {
@@ -32,10 +38,6 @@ type CustomStreamer struct {
 	Ctrl      *beep.Ctrl
 	Format    beep.Format
 	Name      string
-}
-
-type Queue struct {
-	Streamers []CustomStreamer
 }
 
 func (q *Queue) Add(streamer beep.Streamer, format beep.Format, name string) {
@@ -62,6 +64,16 @@ func (q *Queue) Stream(samples [][2]float64) (n int, ok bool) {
 			break
 		}
 
+		currStreamer := q.Streamers[0] //get the current streamer
+
+		if currStreamer.Ctrl.Paused { //if the current streamer is paused
+			for i := range samples[filled:] {
+				samples[i][0] = 0
+				samples[i][1] = 0
+			}
+			break //breaks the loop
+		}
+
 		//now need to stream the current streamer
 		n, ok := q.Streamers[0].Resampled.Stream(samples[filled:]) //stream the samples from the current streamer
 		if !ok {                                                   // not ok means the streamer has finished
@@ -72,6 +84,22 @@ func (q *Queue) Stream(samples [][2]float64) (n int, ok bool) {
 	}
 
 	return len(samples), true
+}
+
+func (q *Queue) Pause() {
+	if len(q.Streamers) == 0 {
+		return
+	}
+
+	q.Streamers[0].Ctrl.Paused = true
+}
+
+func (q *Queue) Play() {
+	if len(q.Streamers) == 0 {
+		return
+	}
+
+	q.Streamers[0].Ctrl.Paused = false
 }
 
 func (q *Queue) Next() {
@@ -113,4 +141,12 @@ func (q *Queue) GetCurrentFormat() beep.Format {
 	}
 
 	return q.Streamers[0].Format
+}
+
+func (q *Queue) GetCurrentCtrl() *beep.Ctrl {
+	if len(q.Streamers) == 0 {
+		return nil
+	}
+
+	return q.Streamers[0].Ctrl
 }
